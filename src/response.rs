@@ -1,0 +1,6 @@
+enum Namespace {
+    Page,
+    Category,
+}
+
+
