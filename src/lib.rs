@@ -30,7 +30,7 @@ impl Wikipedia {
         }
 
         let q: QueryResponse = res.json()?;
-        let page = match from.extract_page(&q) {
+        let page = match from.extract_page(q) {
             Some(p) => p,
             None => {
                 return Err(GetError{
@@ -60,6 +60,11 @@ impl Wikipedia {
             .build()
             .unwrap()
     }
+
+
+    fn some(&self, res: QueryResponse) -> String {
+        res.batchcomplete.unwrap()
+    }
 }
 
 #[derive(Debug)]
@@ -86,7 +91,7 @@ impl Error for GetError {
 
 pub trait PageFrom: fmt::Debug {
     fn get_params(&self) -> (&'static str, String);
-    fn extract_page(&self, res: &QueryResponse) -> Option<Page>;
+    fn extract_page(&self, res: QueryResponse) -> Option<Page>;
 }
 
 impl PageFrom for u64 {
@@ -94,12 +99,12 @@ impl PageFrom for u64 {
         ("pageids", self.to_string())
     }
 
-    fn extract_page(&self, res: &QueryResponse) -> Option<Page> {
+    fn extract_page(&self, res: QueryResponse) -> Option<Page> {
         let page = match res.query.pages.get(&self.to_string()) {
             None => return None,
-            Some(p) => p.clone(),
+            Some(p) => p,
         };
-        Some(page)
+        Some(page.clone())
     }
 }
 
@@ -108,7 +113,7 @@ impl <'a>PageFrom for &'a str {
         ("titles", self.to_string())
     }
 
-    fn extract_page(&self, res: &QueryResponse) -> Option<Page> {
+    fn extract_page(&self, res: QueryResponse) -> Option<Page> {
         for key in &res.query.pages {
             if key.0 == "-1" {
                 continue

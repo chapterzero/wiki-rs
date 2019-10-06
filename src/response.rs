@@ -23,4 +23,10 @@ pub struct Page {
     pub title: String,
     #[serde(rename(deserialize = "extract"))]
     pub desc: String,
+    pub categories: Vec<Category>,
+}
+
+#[derive(Deserialize,Debug,Clone)]
+pub struct Category {
+    pub title: String
 }
