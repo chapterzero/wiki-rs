@@ -1,30 +1,33 @@
 pub mod response;
+mod request;
 
 use std::fmt;
 use std::error::Error;
-use reqwest::{Client as HttpClient, Request, StatusCode};
 use response::{QueryResponse, Page};
+use request::{Caller, PageFrom};
+use reqwest::{Client as HttpClient, StatusCode};
 
 pub struct Wikipedia {
-    pub base_api_url: String,
-    client: HttpClient,
+    caller: Caller
 }
 
 impl Wikipedia {
     pub fn new(lang: &str) -> Wikipedia {
         Wikipedia {
-            base_api_url: format!("https://{}.wikipedia.org/w/api.php", lang),
-            client: HttpClient::new(),
+            caller: Caller {
+                base_api_url: format!("https://{}.wikipedia.org/w/api.php", lang),
+                client: HttpClient::new(),
+            }
         }
     }
 
-    pub fn get_page<T: PageFrom>(&self, from: T) -> Result<Page, Box<dyn Error>> {
-        let from_param = from.get_params();
-        let req = self.create_query_req(&from_param);
-        let mut res = self.client.execute(req)?;
+    pub fn get_page<T: PageFrom>(&self, k: &'static str, from: T) -> Result<Page, Box<dyn Error>> {
+        let mut res = self.caller.client.execute(
+            self.caller.query_params(k, from)
+        )?;
         if res.status() != StatusCode::OK {
             return Err(GetError{
-                from: from_param,
+                from: (k, from.to_string()),
                 reason: format!("expected status code 200, got {}", res.status())
             }.into())
         }
@@ -34,7 +37,7 @@ impl Wikipedia {
             Some(p) => p,
             None => {
                 return Err(GetError{
-                    from: from_param,
+                    from: (k, from.to_string()),
                     reason: "Unable to get page from result, either empty or wrong page id in pages".to_string(),
                 }.into())
             }
@@ -43,28 +46,10 @@ impl Wikipedia {
         return Ok(page)
     }
 
-    fn create_query_req(&self, from: &(&str, String)) -> Request {
-        let params: Vec<(&str, &str)> = vec![
-            ("action", "query"),
-            ("prop", "extracts|categories"),
-            ("exintro", "true"),
-            ("explaintext", "true"),
-            ("format", "json"),
-            ("redirects", "1"),
-            ("cllimit", "20"),
-            ("clshow", "!hidden"),
-            (from.0, &from.1),
-        ];
-        self.client.get(&self.base_api_url)
-            .query(&params)
-            .build()
-            .unwrap()
+    pub fn get_category_members<T: PageFrom>(&self, from: T) -> Result<Vec<Page>, Box<dyn Error>> {
+        Ok(vec![])
     }
 
-
-    fn some(&self, res: QueryResponse) -> String {
-        res.batchcomplete.unwrap()
-    }
 }
 
 #[derive(Debug)]
@@ -85,41 +70,6 @@ impl fmt::Display for GetError {
 
 impl Error for GetError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
-}
-
-pub trait PageFrom: fmt::Debug {
-    fn get_params(&self) -> (&'static str, String);
-    fn extract_page(&self, res: QueryResponse) -> Option<Page>;
-}
-
-impl PageFrom for u64 {
-    fn get_params(&self) -> (&'static str, String) {
-        ("pageids", self.to_string())
-    }
-
-    fn extract_page(&self, res: QueryResponse) -> Option<Page> {
-        let page = match res.query.pages.get(&self.to_string()) {
-            None => return None,
-            Some(p) => p,
-        };
-        Some(page.clone())
-    }
-}
-
-impl <'a>PageFrom for &'a str {
-    fn get_params(&self) -> (&'static str, String) {
-        ("titles", self.to_string())
-    }
-
-    fn extract_page(&self, res: QueryResponse) -> Option<Page> {
-        for key in &res.query.pages {
-            if key.0 == "-1" {
-                continue
-            }
-            return Some(res.query.pages.get(key.0).unwrap().clone())
-        }
         None
     }
 }
