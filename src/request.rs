@@ -29,18 +29,24 @@ impl Caller {
      
     }
 
-    pub fn create_category(&self, from:&(&str, String)) -> Request {
-        let params: Vec<(&str, &str)> = vec![
-            ("action", "query"),
-            ("prop", "extracts|categories"),
-            ("exintro", "true"),
-            ("explaintext", "true"),
+    pub fn category_params(&self, cat_name: &str, cont_token: Option<&String>) -> Request {
+        let mut params: Vec<(&str, &str)> = vec![
             ("format", "json"),
+            ("action", "query"),
             ("redirects", "1"),
-            ("cllimit", "20"),
-            ("clshow", "!hidden"),
-            (from.0, &from.1),
+            ("generator", "categorymembers"),
+            ("prop", "info"),
+            ("inprop", "url"),
+            ("gcmtitle", cat_name),
+            ("gcmlimit", "500"),
+            ("gcmtype", "page|subcat"),
         ];
+        match cont_token {
+            Some(token) => {
+                params.push(("gcmcontinue", token))
+            }
+            None => (),
+        }
         self.client.get(&self.base_api_url)
             .query(&params)
             .build()

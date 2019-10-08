@@ -46,8 +46,39 @@ impl Wikipedia {
         return Ok(page)
     }
 
-    pub fn get_category_members<T: PageFrom>(&self, from: T) -> Result<Vec<Page>, Box<dyn Error>> {
-        Ok(vec![])
+    pub fn get_cat_members(&self, cat_name: &str) -> Result<Vec<Page>, Box<dyn Error>> {
+        let mut pages = vec![];
+        let mut gcmcontinue: Option<String> = None;
+
+        loop {
+            let mut res = self.caller.client.execute(
+                self.caller.category_params(cat_name, gcmcontinue.as_ref())
+            )?;
+            if res.status() != StatusCode::OK {
+                return Err(GetError{
+                    from: ("gcmtitle", cat_name.to_string()),
+                    reason: format!("expected status code 200, got {}", res.status())
+                }.into())
+            }
+
+            let q: QueryResponse = res.json()?;
+            for (_, page) in &q.query.pages {
+                pages.push(page.clone())
+            }
+
+            // continue if response contain continue token
+            match q.cont {
+                Some(cont) => {
+                    match cont.gcmcontinue {
+                        Some(cont_token) => gcmcontinue = Some(cont_token),
+                        None => break
+                    }
+                }
+                None => break
+            }
+        }
+
+        Ok(pages)
     }
 
 }
