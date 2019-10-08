@@ -6,6 +6,7 @@ use std::error::Error;
 use response::{QueryResponse, Page};
 use request::{Caller, PageFrom};
 use reqwest::{Client as HttpClient, StatusCode};
+use log::{info, warn};
 
 pub struct Wikipedia {
     caller: Caller
@@ -22,6 +23,7 @@ impl Wikipedia {
     }
 
     pub fn get_page<T: PageFrom>(&self, k: &'static str, from: T) -> Result<Page, Box<dyn Error>> {
+        info!(target: "Wikipedia", "Calling wikipedia API Query module...");
         let mut res = self.caller.client.execute(
             self.caller.query_params(k, from)
         )?;
@@ -51,6 +53,7 @@ impl Wikipedia {
         let mut gcmcontinue: Option<String> = None;
 
         loop {
+            info!(target: "Wikipedia", "Calling wikipedia API Query module...");
             let mut res = self.caller.client.execute(
                 self.caller.category_params(cat_name, gcmcontinue.as_ref())
             )?;
@@ -70,7 +73,14 @@ impl Wikipedia {
             match q.cont {
                 Some(cont) => {
                     match cont.gcmcontinue {
-                        Some(cont_token) => gcmcontinue = Some(cont_token),
+                        Some(cont_token) => {
+                            warn!(
+                                target: "Wikipedia", 
+                                "Continuing because wikipedia returned continue token: {:?}",
+                                cont_token
+                            );
+                            gcmcontinue = Some(cont_token);
+                        }
                         None => break
                     }
                 }
