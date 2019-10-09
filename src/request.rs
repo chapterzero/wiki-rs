@@ -1,7 +1,7 @@
 use reqwest::{Client as HttpClient, Request};
 use std::fmt;
 use super::response::{QueryResponse, Page};
-use log::{info};
+use log::{debug};
 
 pub struct Caller{
     pub base_api_url: String,
@@ -23,7 +23,7 @@ impl Caller {
             ("clshow", "!hidden"),
             (key, &q),
         ];
-        info!(target: "Wikipedia", "Query Params: {:?}", params);
+        debug!(target: "Wikipedia", "Query Params: {:?}", params);
         self.client.get(&self.base_api_url)
             .query(&params)
             .build()
@@ -48,7 +48,7 @@ impl Caller {
             }
             None => (),
         }
-        info!(target: "Wikipedia", "Category Params: {:?}", params);
+        debug!(target: "Wikipedia", "Category Params: {:?}", params);
         self.client.get(&self.base_api_url)
             .query(&params)
             .build()
