@@ -1,16 +1,33 @@
-use reqwest::{Client as HttpClient, Request};
-use std::fmt;
-use super::response::{QueryResponse, Page};
 use log::{debug};
+use hyper::client::Client;
+use hyper_tls::HttpsConnector;
+use hyper::Body;
+use hyper::client::HttpConnector;
+use http::{Request};
+use http::Uri;
+use http::uri::PathAndQuery;
 
 pub struct Caller{
-    pub base_api_url: String,
-    pub client: HttpClient,
+    pub client: Client<HttpsConnector<HttpConnector>, Body>,
+    scheme: &'static str,
+    authority: String,
+    api_path: &'static str,
 }
 
 impl Caller {
-    pub fn query_params<Q: ToString>(&self, key: &str, q: Q) -> Request {
-        let q = q.to_string();
+    pub fn new(lang: &str) -> Caller {
+        let https = HttpsConnector::new(4).unwrap();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+        Caller{
+            client: client,
+            scheme: "https",
+            authority: format!("{}.wikipedia.org", lang),
+            api_path: "/w/api.php",
+        }
+    }
+
+    pub fn query_params(&self, pageid: u64) -> Request<(Body)> {
+        let pageid = pageid.to_string();
         let params: Vec<(&str, &str)> = vec![
             ("format", "json"),
             ("action", "query"),
@@ -21,16 +38,25 @@ impl Caller {
             ("inprop", "url"),
             ("cllimit", "20"),
             ("clshow", "!hidden"),
-            (key, &q),
+            ("pageids", &pageid),
         ];
-        debug!(target: "Wikipedia", "Query Params: {:?}", params);
-        self.client.get(&self.base_api_url)
-            .query(&params)
+        let params = serde_urlencoded::to_string(params).unwrap();
+        let path_and_query = format!("{}?{}", self.api_path, params);
+        let uri = Uri::builder()
+            .scheme(self.scheme)
+            .authority::<&str>(self.authority.as_ref())
+            .path_and_query(path_and_query.parse::<PathAndQuery>().unwrap())
             .build()
+            .unwrap();
+        debug!(target: "Wikipedia", "URI: {:?}", uri);
+
+        Request::builder()
+            .uri(uri)
+            .body(Body::empty())
             .unwrap()
     }
 
-    pub fn category_params(&self, cat_name: &str, cont_token: Option<&String>) -> Request {
+    pub fn category_params(&self, cat_name: &str, cont_token: Option<&String>) {
         let mut params: Vec<(&str, &str)> = vec![
             ("format", "json"),
             ("action", "query"),
@@ -49,35 +75,9 @@ impl Caller {
             None => (),
         }
         debug!(target: "Wikipedia", "Category Params: {:?}", params);
-        self.client.get(&self.base_api_url)
-            .query(&params)
-            .build()
-            .unwrap()
-    }
-}
-
-pub trait PageFrom: fmt::Debug + ToString + Copy {
-    fn extract_page(&self, res: QueryResponse) -> Option<Page>;
-}
-
-impl PageFrom for u64 {
-    fn extract_page(&self, res: QueryResponse) -> Option<Page> {
-        let page = match res.query.pages.get(&self.to_string()) {
-            None => return None,
-            Some(p) => p,
-        };
-        Some(page.clone())
-    }
-}
-
-impl <'a>PageFrom for &'a str {
-    fn extract_page(&self, res: QueryResponse) -> Option<Page> {
-        for key in &res.query.pages {
-            if key.0 == "-1" {
-                continue
-            }
-            return Some(res.query.pages.get(key.0).unwrap().clone())
-        }
-        None
+        // self.client.get(&self.base_api_url)
+        //     .query(&params)
+        //     .build()
+        //     .unwrap()
     }
 }

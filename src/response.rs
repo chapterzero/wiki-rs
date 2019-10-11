@@ -4,8 +4,8 @@ use std::fmt;
 use serde::de::{Error, Deserializer, Visitor};
 
 #[derive(Deserialize,Debug)]
-pub struct QueryResponse {
-    pub batchcomplete: Option<String>,
+pub struct QueryResponse<'a> {
+    pub batchcomplete: Option<&'a str>,
     pub query: Query,
     #[serde(rename = "continue")]
     pub cont: Option<Cont>
