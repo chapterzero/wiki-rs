@@ -1,14 +1,13 @@
-pub mod response;
 mod request;
+pub mod response;
 
-use response::{QueryResponse, Page};
-use request::{Caller};
-use futures::future::{Future};
-use futures::stream::Stream;
-use futures::future::{err, ok, Either};
+use futures::future::Future;
+use futures::stream::{self, Stream};
+use request::Caller;
+use response::{Namespace, Page, QueryResponse};
 
 pub struct Wikipedia {
-    caller: Caller
+    caller: Caller,
 }
 
 impl Wikipedia {
@@ -18,41 +17,14 @@ impl Wikipedia {
         }
     }
 
-    // pub fn get_page<T: PageFrom>(&self, k: &'static str, from: T) -> Result<Page, Box<dyn Error>> {
-    //     debug!(target: "Wikipedia", "Calling wikipedia API Query module...");
-    //     let mut res = self.caller.client.execute(
-    //         self.caller.query_params(k, from)
-    //     )?;
-    //     if res.status() != StatusCode::OK {
-    //         return Err(GetError{
-    //             from: (k, from.to_string()),
-    //             reason: format!("expected status code 200, got {}", res.status())
-    //         }.into())
-    //     }
-
-    //     let q: QueryResponse = res.json()?;
-    //     let page = match from.extract_page(q) {
-    //         Some(p) => p,
-    //         None => {
-    //             return Err(GetError{
-    //                 from: (k, from.to_string()),
-    //                 reason: "Unable to get page from result, either empty or wrong page id in pages".to_string(),
-    //             }.into())
-    //         }
-    //     };
-
-    //     return Ok(page)
-    // }
-
-    pub fn get_page(&self, pageid: u64) -> impl Future<Item=Page, Error=FetchError> {
+    pub fn get_page(&self, pageid: u64) -> impl Future<Item = Page, Error = FetchError> {
         let req = self.caller.query_params(pageid);
-        self.caller.client.request(req)
+        self.caller
+            .client
+            .request(req)
             .and_then(|res| {
-                if !res.status().is_success() {
-                    return Either::A(err(FetchError::Custom("Unable to get page from result".to_string())));
-                }
                 // asynchronously concatenate chunks of the body
-                Either::B(res.into_body().concat2())
+                res.into_body().concat2()
             })
             .from_err::<FetchError>()
             // use the body after concatenation
@@ -60,11 +32,51 @@ impl Wikipedia {
                 // try to parse as json with serde_json
                 let q: QueryResponse = serde_json::from_slice(&body)?;
                 match q.query.pages.get(&pageid.to_string()) {
-                    None => Err(FetchError::Custom("Unable to get page from result".to_string())),
-                    Some(p) => Ok(p.clone())
+                    None => Err(FetchError::NoPage),
+                    Some(p) => Ok(p.clone()),
                 }
             })
-            .from_err()
+    }
+
+    pub fn get_cat_members(
+        &self,
+        cat_name: &str,
+    ) -> impl Future<Item = Vec<Page>, Error = FetchError> + '_ {
+        let pages = vec![];
+        let cat_name = cat_name.to_string();
+        stream::repeat(())
+            .take(10)
+            .fold(pages, move |mut pages, _| {
+                self.get_cat_member(&cat_name, None)
+                    .and_then(move |q| {
+                        pages.push(Page {
+                            pageid: 1,
+                            title: "222".to_string(),
+                            canonicalurl: "222".to_string(),
+                            ns: Namespace::Page,
+                            desc: None,
+                            categories: None,
+                        });
+                        Ok(pages)
+                    })
+            })
+    }
+
+    fn get_cat_member(
+        &self,
+        cat_name: &str,
+        cont_token: Option<String>,
+    ) -> impl Future<Item = Page, Error = FetchError> {
+        let req = self.caller.category_params(&cat_name, cont_token.as_ref());
+        self.caller.client.request(req)
+            .and_then(|res| res.into_body().concat2())
+            .from_err::<FetchError>()
+            // use the body after concatenation
+            .and_then(move |body| {
+                // try to parse as json with serde_json
+                let q: QueryResponse = serde_json::from_slice(&body)?;
+                Ok(q.query.pages.get("1234").unwrap().clone())
+            })
     }
 
     // pub fn get_cat_members(&self, cat_name: &str) -> Result<Vec<Page>, Box<dyn Error>> {
@@ -94,7 +106,7 @@ impl Wikipedia {
     //                 match cont.gcmcontinue {
     //                     Some(cont_token) => {
     //                         debug!(
-    //                             target: "Wikipedia", 
+    //                             target: "Wikipedia",
     //                             "Continuing because wikipedia returned continue token: {:?}",
     //                             cont_token
     //                         );
@@ -109,23 +121,12 @@ impl Wikipedia {
 
     //     Ok(pages)
     // }
-
 }
 
 // #[derive(Debug)]
 // pub struct GetError {
 //     from: (&'static str, String),
 //     reason: String,
-// }
-
-// impl fmt::Display for GetError {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "Error when Requesting with param {}: {}, Reason: {}",
-//            self.from.0,
-//            self.from.1,
-//            self.reason,
-//         )
-//     }
 // }
 
 // impl Error for GetError {
@@ -139,7 +140,7 @@ impl Wikipedia {
 pub enum FetchError {
     Http(hyper::Error),
     Json(serde_json::Error),
-    Custom(String),
+    NoPage,
 }
 
 impl From<hyper::Error> for FetchError {

@@ -26,7 +26,7 @@ impl Caller {
         }
     }
 
-    pub fn query_params(&self, pageid: u64) -> Request<(Body)> {
+    pub fn query_params(&self, pageid: u64) -> Request<Body> {
         let pageid = pageid.to_string();
         let params: Vec<(&str, &str)> = vec![
             ("format", "json"),
@@ -56,7 +56,7 @@ impl Caller {
             .unwrap()
     }
 
-    pub fn category_params(&self, cat_name: &str, cont_token: Option<&String>) {
+    pub fn category_params(&self, cat_name: &str, cont_token: Option<&String>) -> Request<Body> {
         let mut params: Vec<(&str, &str)> = vec![
             ("format", "json"),
             ("action", "query"),
@@ -74,10 +74,19 @@ impl Caller {
             }
             None => (),
         }
-        debug!(target: "Wikipedia", "Category Params: {:?}", params);
-        // self.client.get(&self.base_api_url)
-        //     .query(&params)
-        //     .build()
-        //     .unwrap()
+        let params = serde_urlencoded::to_string(params).unwrap();
+        let path_and_query = format!("{}?{}", self.api_path, params);
+        let uri = Uri::builder()
+            .scheme(self.scheme)
+            .authority::<&str>(self.authority.as_ref())
+            .path_and_query(path_and_query.parse::<PathAndQuery>().unwrap())
+            .build()
+            .unwrap();
+        debug!(target: "Wikipedia", "URI: {:?}", uri);
+
+        Request::builder()
+            .uri(uri)
+            .body(Body::empty())
+            .unwrap()
     }
 }
