@@ -1,16 +1,36 @@
-use reqwest::{Client as HttpClient, Request};
+use reqwest::{Client as ReqwestClient, Request};
+use hyper::{Client as HyperClient, Body};
 use std::fmt;
 use super::response::{QueryResponse, Page};
+use hyper::client::HttpConnector;
+use hyper_tls::HttpsConnector;
 use log::{debug};
+use chrono::{Utc, DateTime, Duration};
+use percent_encoding:: {AsciiSet, CONTROLS};
+
+const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'/').add(b'?').add(b'`').add(b'\'');
 
 pub struct Caller{
     pub base_api_url: String,
-    pub client: HttpClient,
+    pub authority: String,
+    pub reqwest_client: ReqwestClient,
+    pub hyper_client: HyperClient<HttpsConnector<HttpConnector>, Body>,
 }
 
 impl Caller {
-    pub fn query_params<Q: ToString>(&self, key: &str, q: Q) -> Request {
-        let q = q.to_string();
+    pub fn new(lang: &str) -> Caller {
+        let https = HttpsConnector::new(4).unwrap();
+        let authority = format!("{}.wikipedia.org", lang);
+        Caller {
+            base_api_url: format!("https://{}/w/api.php", &authority),
+            authority: authority,
+            reqwest_client: ReqwestClient::new(),
+            hyper_client: HyperClient::builder().build::<_, hyper::Body>(https),
+        }
+    }
+
+    pub fn query_params_sync(&self, pageid: u64) -> Request {
+        let q = pageid.to_string();
         let params: Vec<(&str, &str)> = vec![
             ("format", "json"),
             ("action", "query"),
@@ -21,10 +41,10 @@ impl Caller {
             ("inprop", "url"),
             ("cllimit", "20"),
             ("clshow", "!hidden"),
-            (key, &q),
+            ("pageids", &q),
         ];
         debug!(target: "Wikipedia", "Query Params: {:?}", params);
-        self.client.get(&self.base_api_url)
+        self.reqwest_client.get(&self.base_api_url)
             .query(&params)
             .build()
             .unwrap()
@@ -49,35 +69,22 @@ impl Caller {
             None => (),
         }
         debug!(target: "Wikipedia", "Category Params: {:?}", params);
-        self.client.get(&self.base_api_url)
+        self.reqwest_client.get(&self.base_api_url)
             .query(&params)
             .build()
             .unwrap()
     }
-}
 
-pub trait PageFrom: fmt::Debug + ToString + Copy {
-    fn extract_page(&self, res: QueryResponse) -> Option<Page>;
-}
-
-impl PageFrom for u64 {
-    fn extract_page(&self, res: QueryResponse) -> Option<Page> {
-        let page = match res.query.pages.get(&self.to_string()) {
-            None => return None,
-            Some(p) => p,
-        };
-        Some(page.clone())
-    }
-}
-
-impl <'a>PageFrom for &'a str {
-    fn extract_page(&self, res: QueryResponse) -> Option<Page> {
-        for key in &res.query.pages {
-            if key.0 == "-1" {
-                continue
-            }
-            return Some(res.query.pages.get(key.0).unwrap().clone())
-        }
-        None
+    pub fn get_pageviews_url(&self, page_title: &str, month_retention: i64) -> String {
+        let now: DateTime<Utc> = Utc::now();
+        let month_ago: DateTime<Utc> = now - Duration::days(month_retention * 30);
+        let api_url = format!(
+            "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/{}/all-access/all-agents/{}/monthly/{}/{}",
+            self.authority,
+            percent_encoding::utf8_percent_encode(page_title, FRAGMENT).collect::<String>(),
+            month_ago.format("%Y%m01"),
+            now.format("%Y%m01"),
+        );
+        api_url
     }
 }

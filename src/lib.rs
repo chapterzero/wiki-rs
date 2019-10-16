@@ -1,11 +1,14 @@
 pub mod response;
+pub mod errors;
 mod request;
 
 use std::fmt;
 use std::error::Error;
+use errors::*;
 use response::{QueryResponse, Page};
-use request::{Caller, PageFrom};
-use reqwest::{Client as HttpClient, StatusCode};
+use request::Caller;
+use futures::future::Future;
+use reqwest::StatusCode;
 use log::{debug};
 
 pub struct Wikipedia {
@@ -15,33 +18,36 @@ pub struct Wikipedia {
 impl Wikipedia {
     pub fn new(lang: &str) -> Wikipedia {
         Wikipedia {
-            caller: Caller {
-                base_api_url: format!("https://{}.wikipedia.org/w/api.php", lang),
-                client: HttpClient::new(),
-            }
+            caller: Caller::new(lang),
         }
     }
 
-    pub fn get_page<T: PageFrom>(&self, k: &'static str, from: T) -> Result<Page, Box<dyn Error>> {
+    pub fn get_page_sync(&self, pageid: u64) -> Result<Page, FetchError> {
         debug!(target: "Wikipedia", "Calling wikipedia API Query module...");
-        let mut res = self.caller.client.execute(
-            self.caller.query_params(k, from)
-        )?;
+        let mut res = match self.caller.reqwest_client.execute(
+            self.caller.query_params_sync(pageid)
+        ) {
+            Ok(res) => res,
+            Err(e) =>  {
+                return Err(FetchError::Custom(format!("Error when executing request: {:?}", e)))
+            }
+        };
+
         if res.status() != StatusCode::OK {
-            return Err(GetError{
-                from: (k, from.to_string()),
-                reason: format!("expected status code 200, got {}", res.status())
-            }.into())
+            return Err(FetchError::Non200StatusCode)
         }
 
-        let q: QueryResponse = res.json()?;
-        let page = match from.extract_page(q) {
-            Some(p) => p,
+        let q: QueryResponse = match res.json() {
+            Ok(s) => s,
+            Err(e) => {
+                return Err(FetchError::Custom(format!("Unable to parse response as json: {:?}", e)))
+            }
+        };
+
+        let page = match q.query.pages.get(&pageid.to_string()) {
+            Some(p) => p.clone(),
             None => {
-                return Err(GetError{
-                    from: (k, from.to_string()),
-                    reason: "Unable to get page from result, either empty or wrong page id in pages".to_string(),
-                }.into())
+                return Err(FetchError::Custom(format!("Unable to get page using pageid {}", pageid)))
             }
         };
 
@@ -54,7 +60,7 @@ impl Wikipedia {
 
         loop {
             debug!(target: "Wikipedia", "Calling wikipedia API Query module...");
-            let mut res = self.caller.client.execute(
+            let mut res = self.caller.reqwest_client.execute(
                 self.caller.category_params(cat_name, gcmcontinue.as_ref())
             )?;
             if res.status() != StatusCode::OK {
@@ -89,6 +95,10 @@ impl Wikipedia {
         }
 
         Ok(pages)
+    }
+
+    pub fn get_page_views(page_title: &str) -> impl Future<Item=(), Error=FetchError> {
+        futures::future::ok(())
     }
 
 }
