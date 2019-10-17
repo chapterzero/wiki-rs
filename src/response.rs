@@ -30,11 +30,17 @@ pub struct Page {
     #[serde(rename = "extract")]
     pub desc: Option<String>,
     pub categories: Option<Vec<Category>>,
+    pub pageprops: Option<PageProps>
 }
 
 #[derive(Deserialize,Debug,Clone)]
 pub struct Category {
     pub title: String
+}
+
+#[derive(Deserialize,Debug,Clone)]
+pub struct PageProps {
+    pub wikibase_item: Option<String>
 }
 
 #[derive(Debug, Clone)]

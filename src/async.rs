@@ -4,6 +4,7 @@ use crate::response::Page;
 use crate::response::{PageViewResponse, QueryResponse};
 use futures::future::Future;
 use futures::stream::Stream;
+use log::{warn};
 
 #[derive(Clone)]
 pub struct WikipediaAsync {
@@ -22,7 +23,12 @@ impl WikipediaAsync {
         self.caller
             .client
             .request(req)
-            .and_then(|res| res.into_body().concat2())
+            .and_then(|res| {
+                if res.status() != 200 {
+                    warn!("Got non 200 response from wikipedia: {:?}", res.status());
+                }
+                res.into_body().concat2()
+            })
             .from_err::<FetchError>()
             .and_then(move |body| {
                 let q: QueryResponse = serde_json::from_slice(&body)?;
