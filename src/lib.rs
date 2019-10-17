@@ -22,8 +22,7 @@ impl Wikipedia {
         }
     }
 
-    pub fn get_page_sync(&self, pageid: u64) -> Result<Page, FetchError> {
-        debug!(target: "Wikipedia", "Calling wikipedia API Query module...");
+    pub fn get_page(&self, pageid: u64) -> Result<Page, FetchError> {
         let mut res = match self.caller.reqwest_client.execute(
             self.caller.query_params_sync(pageid)
         ) {
@@ -54,23 +53,26 @@ impl Wikipedia {
         return Ok(page)
     }
 
-    pub fn get_cat_members(&self, cat_name: &str) -> Result<Vec<Page>, Box<dyn Error>> {
+    pub fn get_cat_members(&self, cat_name: &str) -> Result<Vec<Page>, FetchError> {
         let mut pages = vec![];
         let mut gcmcontinue: Option<String> = None;
 
         loop {
-            debug!(target: "Wikipedia", "Calling wikipedia API Query module...");
-            let mut res = self.caller.reqwest_client.execute(
+            let mut res = match self.caller.reqwest_client.execute(
                 self.caller.category_params(cat_name, gcmcontinue.as_ref())
-            )?;
-            if res.status() != StatusCode::OK {
-                return Err(GetError{
-                    from: ("gcmtitle", cat_name.to_string()),
-                    reason: format!("expected status code 200, got {}", res.status())
-                }.into())
-            }
+            ) {
+                Ok(res) => res,
+                Err(e) =>  {
+                    return Err(FetchError::Custom(format!("Error when executing request: {:?}", e)))
+                }
+            };
 
-            let q: QueryResponse = res.json()?;
+            let q: QueryResponse = match res.json() {
+                Ok(s) => s,
+                Err(e) => {
+                    return Err(FetchError::Custom(format!("Unable to parse response as json: {:?}", e)))
+                }
+            };
             for (_, page) in &q.query.pages {
                 pages.push(page.clone())
             }
@@ -101,26 +103,4 @@ impl Wikipedia {
         futures::future::ok(())
     }
 
-}
-
-#[derive(Debug)]
-pub struct GetError {
-    from: (&'static str, String),
-    reason: String,
-}
-
-impl fmt::Display for GetError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error when Requesting with param {}: {}, Reason: {}",
-           self.from.0,
-           self.from.1,
-           self.reason,
-        )
-    }
-}
-
-impl Error for GetError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
-    }
 }

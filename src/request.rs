@@ -1,7 +1,5 @@
 use reqwest::{Client as ReqwestClient, Request};
 use hyper::{Client as HyperClient, Body};
-use std::fmt;
-use super::response::{QueryResponse, Page};
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use log::{debug};
@@ -12,20 +10,15 @@ const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'/').add(b'?').ad
 
 pub struct Caller{
     pub base_api_url: String,
-    pub authority: String,
     pub reqwest_client: ReqwestClient,
-    pub hyper_client: HyperClient<HttpsConnector<HttpConnector>, Body>,
 }
 
 impl Caller {
     pub fn new(lang: &str) -> Caller {
-        let https = HttpsConnector::new(4).unwrap();
         let authority = format!("{}.wikipedia.org", lang);
         Caller {
             base_api_url: format!("https://{}/w/api.php", &authority),
-            authority: authority,
             reqwest_client: ReqwestClient::new(),
-            hyper_client: HyperClient::builder().build::<_, hyper::Body>(https),
         }
     }
 
@@ -73,6 +66,22 @@ impl Caller {
             .query(&params)
             .build()
             .unwrap()
+    }
+
+}
+
+pub struct AsyncCaller {
+    pub client: HyperClient<HttpsConnector<HttpConnector>, Body>,
+    pub authority: String,
+}
+
+impl AsyncCaller {
+    pub fn new(lang: &str) -> AsyncCaller {
+        let https = HttpsConnector::new(4).unwrap();
+        AsyncCaller {
+            authority: format!("{}.wikipedia.org", lang),
+            client: HyperClient::builder().build::<_, hyper::Body>(https),
+        }
     }
 
     pub fn get_pageviews_url(&self, page_title: &str, month_retention: i64) -> String {
