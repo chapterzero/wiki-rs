@@ -1,13 +1,12 @@
 pub mod response;
 pub mod errors;
+pub mod r#async;
+mod async_request;
 mod request;
 
-use std::fmt;
-use std::error::Error;
 use errors::*;
 use response::{QueryResponse, Page};
 use request::Caller;
-use futures::future::Future;
 use reqwest::StatusCode;
 use log::{debug};
 
@@ -98,9 +97,4 @@ impl Wikipedia {
 
         Ok(pages)
     }
-
-    pub fn get_page_views(page_title: &str) -> impl Future<Item=(), Error=FetchError> {
-        futures::future::ok(())
-    }
-
 }
