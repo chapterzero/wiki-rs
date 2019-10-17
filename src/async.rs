@@ -5,6 +5,7 @@ use crate::response::{PageViewResponse, QueryResponse};
 use futures::future::Future;
 use futures::stream::Stream;
 
+#[derive(Clone)]
 pub struct WikipediaAsync {
     caller: AsyncCaller,
 }

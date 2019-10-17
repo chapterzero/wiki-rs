@@ -8,6 +8,7 @@ use log::debug;
 
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'/').add(b'?').add(b'`').add(b'\'');
 
+#[derive(Clone)]
 pub struct AsyncCaller {
     pub client: HyperClient<HttpsConnector<HttpConnector>, Body>,
     pub authority: &'static str,    // mediawiki domain
