@@ -14,13 +14,10 @@ reqwest = "0.9"
 log = "0.4"
 hyper = "0.12"
 hyper-tls = "0.3"
+http = "0.1"
 futures = "0.1"
 chrono = "0.4"
 
-[[example]]
-name = "sync"
-path = "examples/sync.rs"
-
-[[example]]
-name = "sync_members"
-path = "examples/sync_members.rs"
+[dev-dependencies]
+tokio = "0.1"
+env_logger = "0.7"

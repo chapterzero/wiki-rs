@@ -1,6 +1,8 @@
 use crate::async_request::AsyncCaller;
 use crate::errors::*;
+use crate::response::{PageViewResponse};
 use futures::future::Future;
+use futures::stream::Stream;
 
 pub struct WikipediaAsync {
     caller: AsyncCaller,
@@ -17,9 +19,20 @@ impl WikipediaAsync {
         &self,
         page_title: &str,
         month_retention: i64,
-    ) -> impl Future<Item = (), Error = FetchError> {
-        let page_url = self.caller.get_pageviews_url(page_title, month_retention);
-        println!("{}", page_url);
-        futures::future::ok(())
+    ) -> impl Future<Item = u64, Error = FetchError> {
+        let req = self.caller.get_pageviews_req(page_title, month_retention);
+        self.caller.client.request(req)
+            .and_then(|res| {
+                res.into_body().concat2()
+            })
+            .from_err::<FetchError>()
+            .and_then(|body| {
+                let res: PageViewResponse = serde_json::from_slice(&body)?;
+                let mut pageview: u64 = 0;
+                for item in res.items {
+                    pageview += item.views;
+                }
+                Ok(pageview)
+            })
     }
 }

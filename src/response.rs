@@ -70,3 +70,13 @@ impl<'de> Deserialize<'de> for Namespace {
         deserializer.deserialize_u64(NamespaceVisitor)
     }
 }
+
+#[derive(Deserialize,Debug)]
+pub struct PageViewResponse {
+    pub items: Vec<PageViewItem>
+}
+
+#[derive(Deserialize,Debug)]
+pub struct PageViewItem {
+    pub views: u64,
+}

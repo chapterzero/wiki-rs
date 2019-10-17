@@ -7,7 +7,7 @@ fn main() {
         .expect("Require 2nd argument: page id, Ex: 1234");
 
     let w = Wikipedia::new("id");
-     let page = w.get_page(page_name.parse().expect("Unable to parse argument to u64"));
-     println!("{:?}", page);
+    let page = w.get_page(page_name.parse().expect("Unable to parse argument to u64"));
+    println!("{:?}", page);
 }
 
