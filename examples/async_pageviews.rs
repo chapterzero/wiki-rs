@@ -10,19 +10,29 @@ fn main() {
         .expect("Require 2nd argument: page name, Ex: Joko Widodo");
 
     let w = WikipediaAsync::new("id");
-    let fut = w.get_page_views(page_name, 6)
-        .map(|pv| {
-            println!("{:?}", pv);
+    let page_fut = w.get_page(31706)
+        .map(|p|{
+            println!("{}: {}", p.pageid, p.title);
+        })
+        .map_err(|err| {
+            println!("{:?}", err);
+        });
+
+    let page_name = page_name.clone();
+    let fut = w.get_page_views(&page_name, 6)
+        .map(move |pv| {
+            println!("Page views for {}: {}", page_name, pv);
         })
         .map_err(|err| {
             println!("{:?}", err);
         });
 
     let mut rt = Builder::new()
-        .core_threads(1)
+        .core_threads(2)
         .build()
         .unwrap();
 
+    rt.spawn(page_fut);
     rt.spawn(fut);
     rt.shutdown_on_idle()
         .wait().unwrap();
