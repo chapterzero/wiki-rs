@@ -10,9 +10,13 @@ fn main() {
         .expect("Require 2nd argument: wikidata id");
 
     let w = WikipediaAsync::new("id");
-    let page_fut = w.get_alias(page_name, "en|id")
-        .map(|p|{
-            println!("{:?}", p);
+    let wikidata_fut = w.get_alias(page_name, "en|id");
+    let page_fut = w.get_page(31706);
+
+    let joined = page_fut.join(wikidata_fut)
+        .map(|(p, wikibase)|{
+            println!("{}: {}", p.pageid, p.title);
+            println!("Wikibase alias: {:?}", wikibase);
         })
         .map_err(|err| {
             println!("{:?}", err);
@@ -23,7 +27,7 @@ fn main() {
         .build()
         .unwrap();
 
-    rt.spawn(page_fut);
+    rt.spawn(joined);
     rt.shutdown_on_idle()
         .wait().unwrap();
 }
