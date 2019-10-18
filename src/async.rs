@@ -1,7 +1,8 @@
 use crate::async_request::AsyncCaller;
 use crate::errors::*;
 use crate::response::Page;
-use crate::response::{PageViewResponse, QueryResponse};
+use crate::response::*;
+use std::collections::HashSet;
 use futures::future::Future;
 use futures::stream::Stream;
 use log::{warn};
@@ -57,6 +58,42 @@ impl WikipediaAsync {
                     pageview += item.views;
                 }
                 Ok(pageview)
+            })
+    }
+
+    // separate lang with "|"
+    // Ex: id|en
+    pub fn get_wikidata(&self, wikidata_id: &str, lang: &str) -> impl Future<Item=WikiDataResponse, Error=FetchError> {
+        let req = self.caller.wikidata_params(wikidata_id, lang);
+        self.caller
+            .client
+            .request(req)
+            .and_then(|res| res.into_body().concat2())
+            .from_err::<FetchError>()
+            .and_then(|body| {
+                let res: WikiDataResponse = serde_json::from_slice(&body)?;
+                Ok(res)
+            })
+    }
+
+    // separate lang with "|"
+    // Ex: id|en
+    pub fn get_alias(&self, wikidata_id: &str, lang: &str) -> impl Future<Item=HashSet<String>, Error=FetchError>
+    {
+        let wikidata_id = wikidata_id.to_string();
+        self.get_wikidata(&wikidata_id, lang)
+            .and_then(move |resp| {
+                let mut res: HashSet<String> = HashSet::new();
+                let entity = match resp.entities.get(&wikidata_id) {
+                    Some(e) => e,
+                    None => return Err(FetchError::NoPage),
+                };
+                for (_, lang_alias) in entity.aliases.iter() {
+                    for alias in lang_alias {
+                        res.insert(alias.value.clone());
+                    }
+                }
+                Ok(res)
             })
     }
 }

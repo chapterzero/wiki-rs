@@ -11,8 +11,9 @@ const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'/').add(b'?').ad
 #[derive(Clone)]
 pub struct AsyncCaller {
     pub client: HyperClient<HttpsConnector<HttpConnector>, Body>,
-    pub authority: &'static str,    // mediawiki domain
-    pub wiki_authority: String,     // wikipedia domain
+    pub authority: &'static str,            // mediawiki domain for pageviews
+    pub wiki_authority: String,             // wikipedia domain for category & page details
+    pub wikidata_authority: &'static str,   // wikidata domain for wikidata items Ex: alias
     pub scheme: &'static str,
     pub api_path: &'static str,
 }
@@ -24,6 +25,7 @@ impl AsyncCaller {
             client: HyperClient::builder().build::<_, hyper::Body>(https),
             authority: "wikimedia.org",
             wiki_authority: format!("{}.wikipedia.org", lang),
+            wikidata_authority: "www.wikidata.org",
             scheme: "https",
             api_path: "/w/api.php",
         }
@@ -43,19 +45,37 @@ impl AsyncCaller {
             ("clshow", "!hidden"),
             ("pageids", &pageid),
         ];
+        Request::builder()
+            .uri(self.build_wiki_uri(&self.wiki_authority, &params))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    pub fn wikidata_params(&self, wikidata_id: &str, lang: &str) -> Request<Body> {
+        let params: Vec<(&str, &str)> = vec![
+            ("format", "json"),
+            ("action", "wbgetentities"),
+            ("ids", wikidata_id),
+            ("props", "aliases"),
+            ("languages", lang),
+        ];
+        Request::builder()
+            .uri(self.build_wiki_uri(self.wikidata_authority, &params))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn build_wiki_uri(&self, authority: &str, params: &[(&str, &str)]) -> Uri {
         let params = serde_urlencoded::to_string(params).unwrap();
         let path_and_query = format!("{}?{}", self.api_path, params);
         let uri = Uri::builder()
             .scheme(self.scheme)
-            .authority::<&str>(self.wiki_authority.as_ref())
+            .authority(authority)
             .path_and_query(path_and_query.parse::<PathAndQuery>().unwrap())
             .build()
             .unwrap();
         debug!(target: "Wikipedia", "URI: {:?}", uri);
-        Request::builder()
-            .uri(uri)
-            .body(Body::empty())
-            .unwrap()
+        uri
     }
 
     pub fn get_pageviews_req(&self, page_title: &str, month_retention: i64) -> Request<Body> {

@@ -86,3 +86,18 @@ pub struct PageViewResponse {
 pub struct PageViewItem {
     pub views: u64,
 }
+
+#[derive(Deserialize,Debug)]
+pub struct WikiDataResponse {
+    pub entities: HashMap<String, WikiData>,
+}
+
+#[derive(Deserialize,Debug)]
+pub struct WikiData {
+    pub aliases: HashMap<String, Vec<AliasData>>
+}
+
+#[derive(Deserialize,Debug)]
+pub struct AliasData {
+    pub value: String,
+}
