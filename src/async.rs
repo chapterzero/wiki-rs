@@ -13,16 +13,15 @@ pub struct WikipediaAsync {
 }
 
 impl WikipediaAsync {
-    pub fn new(lang: &str) -> WikipediaAsync {
+    pub fn new(lang: &str, proxy: Option<&Vec<String>>) -> WikipediaAsync {
         WikipediaAsync {
-            caller: AsyncCaller::new(lang),
+            caller: AsyncCaller::new(lang, proxy),
         }
     }
 
     pub fn get_page(&self, pageid: u64) -> impl Future<Item = Page, Error = FetchError> {
         let req = self.caller.query_params(pageid);
         self.caller
-            .client
             .request(req)
             .and_then(|res| {
                 if res.status() != 200 {
@@ -47,7 +46,6 @@ impl WikipediaAsync {
     ) -> impl Future<Item = u64, Error = FetchError> {
         let req = self.caller.get_pageviews_req(page_title, month_retention);
         self.caller
-            .client
             .request(req)
             .and_then(|res| res.into_body().concat2())
             .from_err::<FetchError>()
@@ -66,7 +64,6 @@ impl WikipediaAsync {
     pub fn get_wikidata(&self, wikidata_id: &str, lang: &str) -> impl Future<Item=WikiDataResponse, Error=FetchError> {
         let req = self.caller.wikidata_params(wikidata_id, lang);
         self.caller
-            .client
             .request(req)
             .and_then(|res| res.into_body().concat2())
             .from_err::<FetchError>()

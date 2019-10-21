@@ -1,33 +1,64 @@
 use hyper::{Client as HyperClient, Body, Request};
-use hyper::client::HttpConnector;
+use hyper::client::{HttpConnector, ResponseFuture};
 use hyper_tls::HttpsConnector;
 use chrono::{Utc, DateTime, Duration};
 use percent_encoding:: {AsciiSet, CONTROLS};
 use http::uri::{Uri, PathAndQuery};
+use hyper_proxy::{Proxy, ProxyConnector, Intercept};
 use log::debug;
 
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'/').add(b'?').add(b'`').add(b'\'');
 
 #[derive(Clone)]
 pub struct AsyncCaller {
-    pub client: HyperClient<HttpsConnector<HttpConnector>, Body>,
     pub authority: &'static str,            // mediawiki domain for pageviews
     pub wiki_authority: String,             // wikipedia domain for category & page details
     pub wikidata_authority: &'static str,   // wikidata domain for wikidata items Ex: alias
     pub scheme: &'static str,
     pub api_path: &'static str,
+    client: Option<HyperClient<HttpsConnector<HttpConnector>, Body>>,
+    proxy_client: Option<HyperClient<ProxyConnector<HttpConnector>, Body>>,
 }
 
 impl AsyncCaller {
-    pub fn new(lang: &str) -> AsyncCaller {
-        let https = HttpsConnector::new(4).unwrap();
+    pub fn new(lang: &str, proxy: Option<&Vec<String>>) -> AsyncCaller {
+        let mut client = None;
+        let mut proxy_client = None;
+        match proxy {
+            Some(v) => {
+                let proxy = {
+                    let proxy_uri = "http://10.100.4.68:3128".parse().unwrap();
+                    let proxy = Proxy::new(Intercept::All, proxy_uri);
+                    let connector = HttpConnector::new(4);
+                    let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
+                    proxy_connector
+                };
+                proxy_client = Some(HyperClient::builder().build(proxy));
+            },
+            None => {
+                let https = HttpsConnector::new(4).unwrap();
+                client = Some(HyperClient::builder().build::<_, hyper::Body>(https));
+            },
+        }
+
         AsyncCaller {
-            client: HyperClient::builder().build::<_, hyper::Body>(https),
+            client: client,
+            proxy_client: proxy_client,
             authority: "wikimedia.org",
             wiki_authority: format!("{}.wikipedia.org", lang),
             wikidata_authority: "www.wikidata.org",
             scheme: "https",
             api_path: "/w/api.php",
+        }
+    }
+
+    pub fn request(&self, req: Request<Body>) -> ResponseFuture {
+        match &self.client {
+            Some(c) => c.request(req),
+            None => {
+                let c = self.proxy_client.as_ref().unwrap();
+                c.request(req)
+            }
         }
     }
 
