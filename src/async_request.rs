@@ -26,14 +26,14 @@ impl AsyncCaller {
         let mut proxy_client = None;
         match proxy {
             Some(v) => {
-                let proxy = {
-                    let proxy_uri = "http://10.100.4.68:3128".parse().unwrap();
+                let connector = HttpConnector::new(4);
+                let mut proxy_connector = ProxyConnector::new(connector).unwrap();
+                for h in v {
+                    let proxy_uri = h.parse().unwrap();
                     let proxy = Proxy::new(Intercept::All, proxy_uri);
-                    let connector = HttpConnector::new(4);
-                    let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
-                    proxy_connector
-                };
-                proxy_client = Some(HyperClient::builder().build(proxy));
+                    proxy_connector.add_proxy(proxy);
+                }
+                proxy_client = Some(HyperClient::builder().build(proxy_connector));
             },
             None => {
                 let https = HttpsConnector::new(4).unwrap();
