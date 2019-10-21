@@ -9,7 +9,7 @@ fn main() {
     let page_name: &String = args.get(1)
         .expect("Require 2nd argument: wikidata id");
 
-    let w = WikipediaAsync::new("id", Some(&vec![]));
+    let w = WikipediaAsync::new("id", None);
     let wikidata_fut = w.get_alias(page_name, "en|id");
     let page_fut = w.get_page(31706);
 
