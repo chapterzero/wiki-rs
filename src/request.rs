@@ -1,4 +1,5 @@
 use reqwest::{Client as ReqwestClient, Request};
+use super::response::{QueryResponse, Page};
 use log::{debug};
 
 pub struct Caller{
@@ -15,7 +16,7 @@ impl Caller {
         }
     }
 
-    pub fn query_params_sync(&self, pageid: u64) -> Request {
+    pub fn query_params_sync<T: PageId>(&self, pageid: &T) -> Request {
         let q = pageid.to_string();
         let params: Vec<(&str, &str)> = vec![
             ("format", "json"),
@@ -27,7 +28,7 @@ impl Caller {
             ("inprop", "url"),
             ("cllimit", "20"),
             ("clshow", "!hidden"),
-            ("pageids", &q),
+            (pageid.get_param_name(), &q),
         ];
         debug!(target: "Wikipedia", "Query Params: {:?}", params);
         self.reqwest_client.get(&self.base_api_url)
@@ -60,5 +61,34 @@ impl Caller {
             .query(&params)
             .build()
             .unwrap()
+    }
+}
+
+// PageId could be u64 / &str, they only differ in parameter name and
+// how to extract page from result
+// NOTE when using &str, there is no guarantee page returned is correct
+// because in response, page is indexed with pageid
+pub trait PageId: std::fmt::Display + std::fmt::Debug {
+    fn get_param_name(&self) -> &'static str;
+    fn get_page_from_response(&self, resp: &QueryResponse) -> Option<Page>;
+}
+
+impl PageId for u64 {
+    fn get_param_name(&self) -> &'static str {
+        "pageids"
+    }
+
+    fn get_page_from_response(&self, resp: &QueryResponse) -> Option<Page> {
+        resp.query.pages.get(&self.to_string()).map(|p| p.clone())
+    }
+}
+
+impl PageId for &str {
+    fn get_param_name(&self) -> &'static str {
+        "titles"
+    }
+
+    fn get_page_from_response(&self, resp: &QueryResponse) -> Option<Page> {
+        resp.query.pages.values().next().map(|p| p.clone())
     }
 }

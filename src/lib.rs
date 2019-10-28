@@ -6,7 +6,7 @@ mod request;
 
 use errors::*;
 use response::{QueryResponse, Page};
-use request::Caller;
+use request::{Caller, PageId};
 use reqwest::StatusCode;
 use log::{debug};
 
@@ -21,9 +21,9 @@ impl Wikipedia {
         }
     }
 
-    pub fn get_page(&self, pageid: u64) -> Result<Page, FetchError> {
+    pub fn get_page<T: PageId>(&self, pageid: T) -> Result<Page, FetchError> {
         let mut res = match self.caller.reqwest_client.execute(
-            self.caller.query_params_sync(pageid)
+            self.caller.query_params_sync(&pageid)
         ) {
             Ok(res) => res,
             Err(e) =>  {
@@ -42,14 +42,12 @@ impl Wikipedia {
             }
         };
 
-        let page = match q.query.pages.get(&pageid.to_string()) {
-            Some(p) => p.clone(),
+        match pageid.get_page_from_response(&q) {
+            Some(p) => Ok(p),
             None => {
                 return Err(FetchError::Custom(format!("Unable to get page using pageid {}", pageid)))
             }
-        };
-
-        return Ok(page)
+        }
     }
 
     pub fn get_cat_members(&self, cat_name: &str) -> Result<Vec<Page>, FetchError> {
