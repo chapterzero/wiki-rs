@@ -1,19 +1,27 @@
-use hyper::{Client as HyperClient, Body, Request};
+use chrono::{DateTime, Duration, Utc};
+use http::uri::{PathAndQuery, Uri};
 use hyper::client::{HttpConnector, ResponseFuture};
+use hyper::{Body, Client as HyperClient, Request};
+use hyper_proxy::{Intercept, Proxy, ProxyConnector};
 use hyper_tls::HttpsConnector;
-use chrono::{Utc, DateTime, Duration};
-use percent_encoding:: {AsciiSet, CONTROLS};
-use http::uri::{Uri, PathAndQuery};
-use hyper_proxy::{Proxy, ProxyConnector, Intercept};
 use log::debug;
+use percent_encoding::{AsciiSet, CONTROLS};
 
-const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'/').add(b'?').add(b'`').add(b'\'');
+const FRAGMENT: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'/')
+    .add(b'?')
+    .add(b'`')
+    .add(b'\'');
+
+const HYPER_MAX_IDLE: usize = 100;
 
 #[derive(Clone)]
 pub struct AsyncCaller {
-    pub authority: &'static str,            // mediawiki domain for pageviews
-    pub wiki_authority: String,             // wikipedia domain for category & page details
-    pub wikidata_authority: &'static str,   // wikidata domain for wikidata items Ex: alias
+    pub authority: &'static str,          // mediawiki domain for pageviews
+    pub wiki_authority: String,           // wikipedia domain for category & page details
+    pub wikidata_authority: &'static str, // wikidata domain for wikidata items Ex: alias
     pub scheme: &'static str,
     pub api_path: &'static str,
     client: Option<HyperClient<HttpsConnector<HttpConnector>, Body>>,
@@ -33,12 +41,19 @@ impl AsyncCaller {
                     let proxy = Proxy::new(Intercept::All, proxy_uri);
                     proxy_connector.add_proxy(proxy);
                 }
-                proxy_client = Some(HyperClient::builder().build(proxy_connector));
-            },
+                proxy_client = Some(
+                    HyperClient::builder()
+                        .max_idle_per_host(HYPER_MAX_IDLE)
+                        .build(proxy_connector),
+                );
+            }
             None => {
                 let https = HttpsConnector::new(4).unwrap();
-                client = Some(HyperClient::builder().build::<_, hyper::Body>(https));
-            },
+                client = Some(
+                    HyperClient::builder()
+                        .max_idle_per_host(HYPER_MAX_IDLE)
+                        .build::<_, hyper::Body>(https));
+            }
         }
 
         AsyncCaller {
@@ -126,9 +141,6 @@ impl AsyncCaller {
             .build()
             .unwrap();
         debug!(target: "Wikipedia", "URI: {:?}", uri);
-        Request::builder()
-            .uri(uri)
-            .body(Body::empty())
-            .unwrap()
+        Request::builder().uri(uri).body(Body::empty()).unwrap()
     }
 }
