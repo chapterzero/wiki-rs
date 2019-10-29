@@ -37,7 +37,8 @@ impl Caller {
             .unwrap()
     }
 
-    pub fn category_params(&self, cat_name: &str, cont_token: Option<&String>) -> Request {
+    pub fn category_params<T: PageId>(&self, pageid: &T, cont_token: Option<&String>) -> Request {
+        let q = pageid.to_string();
         let mut params: Vec<(&str, &str)> = vec![
             ("format", "json"),
             ("action", "query"),
@@ -46,7 +47,7 @@ impl Caller {
             ("prop", "info|pageprops"),
             ("ppprop", "wikibase_item"),
             ("inprop", "url"),
-            ("gcmtitle", cat_name),
+            (pageid.get_cat_param_name(), &q),
             ("gcmlimit", "500"),
             ("gcmtype", "page|subcat"),
         ];
@@ -70,12 +71,17 @@ impl Caller {
 // because in response, page is indexed with pageid
 pub trait PageId: std::fmt::Display + std::fmt::Debug {
     fn get_param_name(&self) -> &'static str;
+    fn get_cat_param_name(&self) -> &'static str;
     fn get_page_from_response(&self, resp: &QueryResponse) -> Option<Page>;
 }
 
 impl PageId for u64 {
     fn get_param_name(&self) -> &'static str {
         "pageids"
+    }
+
+    fn get_cat_param_name(&self) -> &'static str {
+        "gcmpageid"
     }
 
     fn get_page_from_response(&self, resp: &QueryResponse) -> Option<Page> {
@@ -86,6 +92,10 @@ impl PageId for u64 {
 impl PageId for &str {
     fn get_param_name(&self) -> &'static str {
         "titles"
+    }
+
+    fn get_cat_param_name(&self) -> &'static str {
+        "gcmtitle"
     }
 
     fn get_page_from_response(&self, resp: &QueryResponse) -> Option<Page> {

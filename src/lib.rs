@@ -50,13 +50,13 @@ impl Wikipedia {
         }
     }
 
-    pub fn get_cat_members(&self, cat_name: &str) -> Result<Vec<Page>, FetchError> {
+    pub fn get_cat_members<T: PageId>(&self, pageid: T) -> Result<Vec<Page>, FetchError> {
         let mut pages = vec![];
         let mut gcmcontinue: Option<String> = None;
 
         loop {
             let mut res = match self.caller.reqwest_client.execute(
-                self.caller.category_params(cat_name, gcmcontinue.as_ref())
+                self.caller.category_params(&pageid, gcmcontinue.as_ref())
             ) {
                 Ok(res) => res,
                 Err(e) =>  {

@@ -1,16 +1,13 @@
 use wikipedia::Wikipedia;
-use std::env;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let page_name: &String = args.get(1)
-        .expect("Require 2nd argument: cat name, Ex: Katgori:Politikus_Indonesia");
-
+    env_logger::init();
     let w = Wikipedia::new("id");
-    let pages = w.get_cat_members(page_name).unwrap();
-    for page in pages {
-        println!("{}: {}", page.pageid, page.title);
-    }
+    let pages = w.get_cat_members("Kategori:Politikus_Indonesia").unwrap();
+    println!("===========");
+    let page2 = w.get_cat_members(69084u64).unwrap();
+
+    println!("Len with string: {}, len with u64: {}", pages.len(), page2.len());
 }
 
 
