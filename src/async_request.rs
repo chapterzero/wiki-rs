@@ -5,7 +5,9 @@ use hyper::{Body, Client as HyperClient, Request};
 use hyper_proxy::{Intercept, Proxy, ProxyConnector};
 use hyper_tls::HttpsConnector;
 use log::debug;
+use crate::ProxyConfig;
 use percent_encoding::{AsciiSet, CONTROLS};
+use typed_headers::Credentials;
 
 const FRAGMENT: &AsciiSet = &CONTROLS
     .add(b' ')
@@ -29,18 +31,22 @@ pub struct AsyncCaller {
 }
 
 impl AsyncCaller {
-    pub fn new(lang: &str, proxy: Option<&Vec<String>>) -> AsyncCaller {
+    pub fn new(lang: &str, proxy: Option<ProxyConfig>) -> AsyncCaller {
         let mut client = None;
         let mut proxy_client = None;
         match proxy {
             Some(v) => {
                 let connector = HttpConnector::new(4);
                 let mut proxy_connector = ProxyConnector::new(connector).unwrap();
-                for h in v {
-                    let proxy_uri = h.parse().unwrap();
-                    let proxy = Proxy::new(Intercept::All, proxy_uri);
-                    proxy_connector.add_proxy(proxy);
+                let proxy_uri = v.host.parse().unwrap();
+                let mut proxy = Proxy::new(Intercept::All, proxy_uri);
+                match v.username {
+                    None => (),
+                    Some(u) => {
+                        proxy.set_authorization(Credentials::basic(u, v.password.unwrap_or("")).unwrap())
+                    },
                 }
+                proxy_connector.add_proxy(proxy);
                 proxy_client = Some(
                     HyperClient::builder()
                         .max_idle_per_host(HYPER_MAX_IDLE)

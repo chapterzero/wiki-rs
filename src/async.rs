@@ -2,6 +2,7 @@ use crate::async_request::AsyncCaller;
 use crate::errors::*;
 use crate::response::Page;
 use crate::response::*;
+use crate::ProxyConfig;
 use std::collections::HashSet;
 use futures::future::Future;
 use futures::stream::Stream;
@@ -13,7 +14,7 @@ pub struct WikipediaAsync {
 }
 
 impl WikipediaAsync {
-    pub fn new(lang: &str, proxy: Option<&Vec<String>>) -> WikipediaAsync {
+    pub fn new(lang: &str, proxy: Option<ProxyConfig>) -> WikipediaAsync {
         WikipediaAsync {
             caller: AsyncCaller::new(lang, proxy),
         }

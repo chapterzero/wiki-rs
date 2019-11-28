@@ -2,6 +2,7 @@ use std::env;
 use wikipedia::r#async::WikipediaAsync;
 use futures::future::Future;
 use tokio::runtime::{Builder};
+use wikipedia::ProxyConfig;
 
 fn main() {
     env_logger::init();
@@ -9,7 +10,7 @@ fn main() {
     let page_name: &String = args.get(1)
         .expect("Require 2nd argument: page name, Ex: Joko Widodo");
 
-    let w = WikipediaAsync::new("id");
+    let w = WikipediaAsync::new("id", None);
     let page_fut = w.get_page(31706)
         .map(|p|{
             println!("{}: {}", p.pageid, p.title);

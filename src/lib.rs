@@ -10,6 +10,12 @@ use request::{Caller, PageId};
 use reqwest::StatusCode;
 use log::{debug};
 
+pub struct ProxyConfig<'a>{
+    pub host: &'a str,
+    pub username: Option<&'a str>,
+    pub password: Option<&'a str>,
+}
+
 pub struct Wikipedia {
     caller: Caller
 }

@@ -19,6 +19,7 @@ hyper-proxy = "0.5"
 http = "0.1"
 futures = "0.1"
 chrono = "0.4"
+typed-headers = "0.1"
 
 [dev-dependencies]
 tokio = "0.1"
