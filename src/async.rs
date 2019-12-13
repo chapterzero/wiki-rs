@@ -2,6 +2,7 @@ use crate::async_request::AsyncCaller;
 use crate::errors::*;
 use crate::response::Page;
 use crate::response::*;
+use crate::request::PageId;
 use crate::ProxyConfig;
 use std::collections::HashSet;
 use futures::future::Future;
@@ -20,8 +21,8 @@ impl WikipediaAsync {
         }
     }
 
-    pub fn get_page(&self, pageid: u64) -> impl Future<Item = Page, Error = FetchError> {
-        let req = self.caller.query_params(pageid);
+    pub fn get_page<T: PageId>(&self, pageid: T) -> impl Future<Item = Page, Error = FetchError> {
+        let req = self.caller.query_params(&pageid);
         self.caller
             .request(req)
             .and_then(|res| {
@@ -33,9 +34,9 @@ impl WikipediaAsync {
             .from_err::<FetchError>()
             .and_then(move |body| {
                 let q: QueryResponse = serde_json::from_slice(&body)?;
-                match q.query.pages.get(&pageid.to_string()) {
+                match pageid.get_page_from_response(&q) {
                     None => Err(FetchError::NoPage),
-                    Some(p) => Ok(p.clone()),
+                    Some(p) => Ok(p),
                 }
             })
     }

@@ -102,3 +102,17 @@ impl PageId for &str {
         resp.query.pages.values().next().map(|p| p.clone())
     }
 }
+
+impl PageId for String {
+    fn get_param_name(&self) -> &'static str {
+        "titles"
+    }
+
+    fn get_cat_param_name(&self) -> &'static str {
+        "gcmtitle"
+    }
+
+    fn get_page_from_response(&self, resp: &QueryResponse) -> Option<Page> {
+        resp.query.pages.values().next().map(|p| p.clone())
+    }
+}

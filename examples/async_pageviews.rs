@@ -7,11 +7,12 @@ use wikipedia::ProxyConfig;
 fn main() {
     env_logger::init();
     let args: Vec<String> = env::args().collect();
-    let page_name: &String = args.get(1)
-        .expect("Require 2nd argument: page name, Ex: Joko Widodo");
+    let page_name: String = args.get(1)
+        .expect("Require 2nd argument: page name, Ex: Joko Widodo")
+        .clone();
 
     let w = WikipediaAsync::new("id", None);
-    let page_fut = w.get_page(31706)
+    let page_fut = w.get_page(page_name.clone())
         .map(|p|{
             println!("{}: {}", p.pageid, p.title);
         })
@@ -19,7 +20,7 @@ fn main() {
             println!("{:?}", err);
         });
 
-    let page_name = page_name.clone();
+    let page_name = page_name;
     let fut = w.get_page_views(&page_name, 6)
         .map(move |pv| {
             println!("Page views for {}: {}", page_name, pv);

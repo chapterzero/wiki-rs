@@ -6,6 +6,7 @@ use hyper_proxy::{Intercept, Proxy, ProxyConnector};
 use hyper_tls::HttpsConnector;
 use log::debug;
 use crate::ProxyConfig;
+use crate::request::PageId;
 use percent_encoding::{AsciiSet, CONTROLS};
 use typed_headers::Credentials;
 
@@ -83,8 +84,8 @@ impl AsyncCaller {
         }
     }
 
-    pub fn query_params(&self, pageid: u64) -> Request<Body> {
-        let pageid = pageid.to_string();
+    pub fn query_params<T: PageId>(&self, pageid: &T) -> Request<Body> {
+        let q = pageid.to_string();
         let params: Vec<(&str, &str)> = vec![
             ("format", "json"),
             ("action", "query"),
@@ -95,7 +96,7 @@ impl AsyncCaller {
             ("inprop", "url"),
             ("cllimit", "20"),
             ("clshow", "!hidden"),
-            ("pageids", &pageid),
+            (pageid.get_param_name(), &q),
         ];
         Request::builder()
             .uri(self.build_wiki_uri(&self.wiki_authority, &params))
