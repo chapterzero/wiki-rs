@@ -7,7 +7,7 @@ use crate::ProxyConfig;
 use std::collections::HashSet;
 use futures::future::Future;
 use futures::stream::Stream;
-use log::{warn, debug};
+use log::{warn};
 
 #[derive(Clone)]
 pub struct WikipediaAsync {
@@ -33,7 +33,6 @@ impl WikipediaAsync {
             })
             .from_err::<FetchError>()
             .and_then(move |body| {
-                debug!("Unmarshalling result for {}", pageid);
                 let q: QueryResponse = serde_json::from_slice(&body)?;
                 match pageid.get_page_from_response(&q) {
                     None => Err(FetchError::NoPage),
