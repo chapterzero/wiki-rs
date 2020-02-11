@@ -37,7 +37,7 @@ impl AsyncCaller {
         let mut proxy_client = None;
         match proxy {
             Some(v) => {
-                let connector = HttpConnector::new(4);
+                let connector = HttpConnector::new();
                 let mut proxy_connector = ProxyConnector::new(connector).unwrap();
                 let proxy_uri = v.host.parse().unwrap();
                 let mut proxy = Proxy::new(Intercept::All, proxy_uri);
@@ -55,7 +55,7 @@ impl AsyncCaller {
                 );
             }
             None => {
-                let https = HttpsConnector::new(4).unwrap();
+                let https = HttpsConnector::new();
                 client = Some(
                     HyperClient::builder()
                         .max_idle_per_host(HYPER_MAX_IDLE)
@@ -115,6 +115,32 @@ impl AsyncCaller {
         ];
         Request::builder()
             .uri(self.build_wiki_uri(self.wikidata_authority, &params))
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    pub fn category_params<T: PageId>(&self, pageid: &T, cont_token: Option<&String>) -> Request<Body> {
+        let q = pageid.to_string();
+        let mut params: Vec<(&str, &str)> = vec![
+            ("format", "json"),
+            ("action", "query"),
+            ("redirects", "1"),
+            ("generator", "categorymembers"),
+            ("prop", "info|pageprops"),
+            ("ppprop", "wikibase_item"),
+            ("inprop", "url"),
+            (pageid.get_cat_param_name(), &q),
+            ("gcmlimit", "500"),
+            ("gcmtype", "page|subcat"),
+        ];
+        match cont_token {
+            Some(token) => {
+                params.push(("gcmcontinue", token))
+            }
+            None => (),
+        }
+        Request::builder()
+            .uri(self.build_wiki_uri(&self.wiki_authority, &params))
             .body(Body::empty())
             .unwrap()
     }

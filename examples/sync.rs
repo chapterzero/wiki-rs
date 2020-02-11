@@ -5,7 +5,7 @@ use wikipedia::Wikipedia;
 
 fn main() {
     env_logger::init();
-    let w = Wikipedia::new("id");
+    let mut w = Wikipedia::new("id");
     let page = w.get_page("Joko Widodo");
     info!("Using &str");
     info!("{:?}", page);

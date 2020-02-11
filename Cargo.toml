@@ -1,6 +1,6 @@
 [package]
 name = "wikipedia"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Yusuf Irwandi <yusuf.chapterzero@gmail.com>"]
 edition = "2018"
 
@@ -11,16 +11,17 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_urlencoded = "0.6"
 percent-encoding = "2.1.0"
-reqwest = "0.9"
 log = "0.4"
-hyper = "0.12"
-hyper-tls = "0.3"
-hyper-proxy = "0.5"
-http = "0.1"
-futures = "0.1"
+hyper = "0.13"
+hyper-tls = "0.4"
+hyper-proxy = "0.6"
+http = "0.2"
+bytes = "0.5"
+tokio = "0.2"
+futures = "0.3"
+futures-util = "0.3"
 chrono = "0.4"
-typed-headers = "0.1"
+typed-headers = "0.2"
 
 [dev-dependencies]
-tokio = "0.1"
 env_logger = "0.7"
