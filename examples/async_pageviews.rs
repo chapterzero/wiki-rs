@@ -15,9 +15,10 @@ fn main() {
 }
 
 async fn process(page_name: &str) -> Result<(), FetchError> {
-    let w = WikipediaAsync::new("id", None);
-    let page_fut = w.get_page(page_name);
-    let page_views_fut = w.get_page_views(&page_name, 6);
+    let lang = wikipedia::Lang::EN;
+    let w = WikipediaAsync::new(None);
+    let page_fut = w.get_page(page_name, &lang);
+    let page_views_fut = w.get_page_views(&page_name, 6, &lang);
     let (p, pv) = try_join!(page_fut, page_views_fut)?;
     println!("{}: {}", p.pageid, p.title);
     println!("Page views for {}: {}", page_name, pv);

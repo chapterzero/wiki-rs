@@ -9,6 +9,7 @@ use crate::ProxyConfig;
 use crate::request::PageId;
 use percent_encoding::{AsciiSet, CONTROLS};
 use typed_headers::Credentials;
+use super::Lang;
 
 const FRAGMENT: &AsciiSet = &CONTROLS
     .add(b' ')
@@ -23,7 +24,6 @@ const HYPER_MAX_IDLE: usize = 100;
 #[derive(Clone)]
 pub struct AsyncCaller {
     pub authority: &'static str,          // mediawiki domain for pageviews
-    pub wiki_authority: String,           // wikipedia domain for category & page details
     pub wikidata_authority: &'static str, // wikidata domain for wikidata items Ex: alias
     pub scheme: &'static str,
     pub api_path: &'static str,
@@ -32,7 +32,7 @@ pub struct AsyncCaller {
 }
 
 impl AsyncCaller {
-    pub fn new(lang: &str, proxy: Option<ProxyConfig>) -> AsyncCaller {
+    pub fn new(proxy: Option<ProxyConfig>) -> AsyncCaller {
         let mut client = None;
         let mut proxy_client = None;
         match proxy {
@@ -67,7 +67,6 @@ impl AsyncCaller {
             client: client,
             proxy_client: proxy_client,
             authority: "wikimedia.org",
-            wiki_authority: format!("{}.wikipedia.org", lang),
             wikidata_authority: "www.wikidata.org",
             scheme: "https",
             api_path: "/w/api.php",
@@ -84,7 +83,7 @@ impl AsyncCaller {
         }
     }
 
-    pub fn query_params<T: PageId>(&self, pageid: &T) -> Request<Body> {
+    pub fn query_params<T: PageId>(&self, pageid: &T, lang: &Lang) -> Request<Body> {
         let q = pageid.to_string();
         let params: Vec<(&str, &str)> = vec![
             ("format", "json"),
@@ -100,7 +99,7 @@ impl AsyncCaller {
             (pageid.get_param_name(), &q),
         ];
         Request::builder()
-            .uri(self.build_wiki_uri(&self.wiki_authority, &params))
+            .uri(self.build_wiki_uri(lang.get_wiki_authority(), &params))
             .body(Body::empty())
             .unwrap()
     }
@@ -119,7 +118,7 @@ impl AsyncCaller {
             .unwrap()
     }
 
-    pub fn category_params<T: PageId>(&self, pageid: &T, cont_token: Option<&String>) -> Request<Body> {
+    pub fn category_params<T: PageId>(&self, pageid: &T, lang: &Lang, cont_token: Option<&String>) -> Request<Body> {
         let q = pageid.to_string();
         let mut params: Vec<(&str, &str)> = vec![
             ("format", "json"),
@@ -140,7 +139,7 @@ impl AsyncCaller {
             None => (),
         }
         Request::builder()
-            .uri(self.build_wiki_uri(&self.wiki_authority, &params))
+            .uri(self.build_wiki_uri(&lang.get_wiki_authority(), &params))
             .body(Body::empty())
             .unwrap()
     }
@@ -158,12 +157,12 @@ impl AsyncCaller {
         uri
     }
 
-    pub fn get_pageviews_req(&self, page_title: &str, month_retention: i64) -> Request<Body> {
+    pub fn get_pageviews_req(&self, page_title: &str, month_retention: i64, lang: &Lang) -> Request<Body> {
         let now: DateTime<Utc> = Utc::now();
         let month_ago: DateTime<Utc> = now - Duration::days(month_retention * 30);
         let path = format!(
             "/api/rest_v1/metrics/pageviews/per-article/{}/all-access/all-agents/{}/monthly/{}/{}",
-            self.wiki_authority,
+            lang.get_wiki_authority(),
             percent_encoding::utf8_percent_encode(page_title, FRAGMENT).collect::<String>(),
             month_ago.format("%Y%m01"),
             now.format("%Y%m01"),

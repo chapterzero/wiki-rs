@@ -8,6 +8,7 @@ use bytes::{BytesMut, BufMut};
 use hyper::{body::HttpBody};
 use std::collections::HashSet;
 use log::{warn, debug};
+use super::Lang;
 
 #[derive(Clone)]
 pub struct WikipediaAsync {
@@ -15,14 +16,14 @@ pub struct WikipediaAsync {
 }
 
 impl WikipediaAsync {
-    pub fn new(lang: &str, proxy: Option<ProxyConfig>) -> WikipediaAsync {
+    pub fn new(proxy: Option<ProxyConfig>) -> WikipediaAsync {
         WikipediaAsync {
-            caller: AsyncCaller::new(lang, proxy),
+            caller: AsyncCaller::new(proxy),
         }
     }
 
-    pub async fn get_page<T: PageId>(&self, pageid: T) -> Result<Page, FetchError> {
-        let req = self.caller.query_params(&pageid);
+    pub async fn get_page<T: PageId>(&self, pageid: T, lang: &Lang) -> Result<Page, FetchError> {
+        let req = self.caller.query_params(&pageid, lang);
         let mut res = self.caller.request(req).await?;
         if res.status() != 200 {
             warn!("Got non 200 response from wikipedia: {:?}", res.status());
@@ -42,8 +43,9 @@ impl WikipediaAsync {
         &self,
         page_title: &str,
         month_retention: i64,
+        lang: &Lang,
     ) -> Result<u64, FetchError> {
-        let mut res = self.caller.request(self.caller.get_pageviews_req(page_title, month_retention)).await?;
+        let mut res = self.caller.request(self.caller.get_pageviews_req(page_title, month_retention, lang)).await?;
         let mut body = BytesMut::with_capacity(1024);
         while let Some(next) = res.data().await {
             body.put(next?);
@@ -87,11 +89,11 @@ impl WikipediaAsync {
         Ok(res)
     }
 
-    pub async fn get_cat_members<T: PageId>(&self, pageid: T) -> Result<Vec<Page>, FetchError> {
+    pub async fn get_cat_members<T: PageId>(&self, pageid: T, lang: &Lang) -> Result<Vec<Page>, FetchError> {
         let mut pages = vec![];
         let mut gcmcontinue: Option<String> = None;
         loop {
-            let mut resp = self.caller.request(self.caller.category_params(&pageid, gcmcontinue.as_ref())).await?;
+            let mut resp = self.caller.request(self.caller.category_params(&pageid, lang, gcmcontinue.as_ref())).await?;
             let mut body = BytesMut::with_capacity(1024);
             while let Some(next) = resp.data().await {
                 body.put(next?);
