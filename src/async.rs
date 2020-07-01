@@ -6,7 +6,6 @@ use crate::request::PageId;
 use crate::ProxyConfig;
 use bytes::{BytesMut, BufMut};
 use hyper::{body::HttpBody};
-use std::collections::HashSet;
 use log::{warn, debug};
 use super::Lang;
 
@@ -67,25 +66,6 @@ impl WikipediaAsync {
             body.put(next?);
         }
         let res: WikiDataResponse = serde_json::from_slice(&body)?;
-        Ok(res)
-    }
-
-    // separate lang with "|"
-    // Ex: id|en
-    pub async fn get_alias(&self, wikidata_id: &str, lang: &str) -> Result<HashSet<String>, FetchError>
-    {
-        let wikidata_id = wikidata_id.to_string();
-        let resp = self.get_wikidata(&wikidata_id, lang).await?;
-        let mut res: HashSet<String> = HashSet::new();
-        let entity = match resp.entities.get(&wikidata_id) {
-            Some(e) => e,
-            None => return Err(FetchError::NoPage),
-        };
-        for (_, lang_alias) in entity.aliases.iter() {
-            for alias in lang_alias {
-                res.insert(alias.value.clone());
-            }
-        }
         Ok(res)
     }
 

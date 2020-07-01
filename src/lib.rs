@@ -73,7 +73,7 @@ impl Lang {
     pub fn from_url(url: &str) -> Option<Self> {
         lazy_static! {
             static ref RE: Regex =
-                Regex::new(r#"^https?:\/\/([a-z]{2})\.wikipedia\.org\.*"#).unwrap();
+                Regex::new(r#"^https?://([a-z]{2})\.wikipedia\.org\.*"#).unwrap();
         }
         RE.captures(url).and_then(|capture| {
             capture

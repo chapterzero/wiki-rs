@@ -109,7 +109,7 @@ impl AsyncCaller {
             ("format", "json"),
             ("action", "wbgetentities"),
             ("ids", wikidata_id),
-            ("props", "aliases"),
+            ("props", "aliases|sitelinks"),
             ("languages", lang),
         ];
         Request::builder()
