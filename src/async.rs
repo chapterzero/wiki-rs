@@ -5,7 +5,7 @@ use crate::response::*;
 use crate::request::PageId;
 use crate::ProxyConfig;
 use bytes::{BytesMut, BufMut};
-use hyper::{body::HttpBody};
+use hyper::body::HttpBody;
 use log::{warn, debug};
 use super::Lang;
 

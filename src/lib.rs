@@ -7,39 +7,12 @@ pub mod errors;
 mod request;
 pub mod response;
 
-use errors::*;
-use r#async::WikipediaAsync;
 use regex::Regex;
-use request::PageId;
-use response::Page;
-use tokio::runtime::Runtime;
 
 pub struct ProxyConfig<'a> {
     pub host: &'a str,
     pub username: Option<&'a str>,
     pub password: Option<&'a str>,
-}
-
-pub struct Wikipedia {
-    async_lib: WikipediaAsync,
-}
-
-impl Wikipedia {
-    pub fn new() -> Wikipedia {
-        Wikipedia {
-            async_lib: WikipediaAsync::new(None),
-        }
-    }
-
-    pub fn get_page<T: PageId>(&self, pageid: T, lang: &Lang) -> Result<Page, FetchError> {
-        let mut rt = Runtime::new().unwrap();
-        rt.block_on(self.async_lib.get_page(pageid, lang))
-    }
-
-    pub fn get_cat_members<T: PageId>(&self, pageid: T, lang: &Lang) -> Result<Vec<Page>, FetchError> {
-        let mut rt = Runtime::new().unwrap();
-        rt.block_on(self.async_lib.get_cat_members(pageid, lang))
-    }
 }
 
 pub enum Lang {

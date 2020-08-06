@@ -50,7 +50,7 @@ impl AsyncCaller {
                 proxy_connector.add_proxy(proxy);
                 proxy_client = Some(
                     HyperClient::builder()
-                        .max_idle_per_host(HYPER_MAX_IDLE)
+                        .pool_max_idle_per_host(HYPER_MAX_IDLE)
                         .build(proxy_connector),
                 );
             }
@@ -58,7 +58,7 @@ impl AsyncCaller {
                 let https = HttpsConnector::new();
                 client = Some(
                     HyperClient::builder()
-                        .max_idle_per_host(HYPER_MAX_IDLE)
+                        .pool_max_idle_per_host(HYPER_MAX_IDLE)
                         .build::<_, hyper::Body>(https));
             }
         }

@@ -17,7 +17,6 @@ hyper-tls = "0.4"
 hyper-proxy = "0.6"
 http = "0.2"
 bytes = "0.5"
-tokio = "0.2"
 futures = "0.3"
 futures-util = "0.3"
 chrono = "0.4"
@@ -27,3 +26,4 @@ lazy_static = "1.4.0"
 
 [dev-dependencies]
 env_logger = "0.7"
+tokio = "0.2"
