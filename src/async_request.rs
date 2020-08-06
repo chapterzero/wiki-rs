@@ -64,8 +64,8 @@ impl AsyncCaller {
         }
 
         AsyncCaller {
-            client: client,
-            proxy_client: proxy_client,
+            client,
+            proxy_client,
             authority: "wikimedia.org",
             wikidata_authority: "www.wikidata.org",
             scheme: "https",
